@@ -2,6 +2,7 @@ package dnssd
 
 import (
 	"fmt"
+	"log"
 )
 
 // browse browses for service instances on the local network.
@@ -32,6 +33,9 @@ func (r *Resolver) browse() {
 			if cacheUpdated := r.cache.onTextRecordReceived(textRecord); cacheUpdated {
 				r.onCacheUpdated()
 			}
+
+		case serviceName := <-r.serviceAddCh:
+			r.onServiceAdded(serviceName)
 		}
 	}
 }
@@ -51,4 +55,19 @@ func (r *Resolver) close() {
 // onCacheUpdated handles updating the resolver's state whenever the cache has been modified.
 func (r *Resolver) onCacheUpdated() {
 	r.resolvedInstances = r.cache.toResolvedInstances()
+}
+
+// onServiceAdded handles adding a new service to browse for.
+func (r *Resolver) onServiceAdded(name string) {
+	if r.services[name] {
+		// We were already browsing for this service
+		return
+	}
+
+	r.services[name] = true
+
+	err := r.netClient.sendQuestion(pointerQuestion{serviceName: name})
+	if err != nil {
+		log.Printf("dnssd: failed sending pointer question: %v", err)
+	}
 }

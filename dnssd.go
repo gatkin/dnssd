@@ -23,6 +23,8 @@ type Resolver struct {
 	messagePipeline   messagePipeline
 	netClient         netClient
 	resolvedInstances map[serviceInstanceID]ServiceInstance
+	serviceAddCh      chan string
+	services          map[string]bool // Set of services being browsed for
 	shutdownCh        chan struct{}
 }
 
@@ -52,6 +54,8 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 		messagePipeline:   messagePipeline,
 		netClient:         client,
 		resolvedInstances: make(map[serviceInstanceID]ServiceInstance),
+		serviceAddCh:      make(chan string),
+		services:          make(map[string]bool),
 		shutdownCh:        make(chan struct{}),
 	}
 
@@ -59,6 +63,12 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 	go resolver.browse()
 
 	return
+}
+
+// AddService adds the given service to the set of services the resolver is browsing for. This has
+// no effect if the resolver is already browsing for the service.
+func (r *Resolver) AddService(name string) {
+	r.serviceAddCh <- name
 }
 
 // Close closes the resolver and cleans up all resources owned by it.
