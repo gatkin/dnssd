@@ -1,19 +1,23 @@
 package dnssd
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 )
 
 // serviceInstanceID is a unique identifier for a fully resolved service instance.
 type serviceInstanceID string
 
+// addressRecordID is a unique identifier for an address record.
+type addressRecordID struct {
+	address string
+	name    string
+}
+
 // cache manages a cache of received resource records.
 type cache struct {
-	// Maps from name to IPv4 address record.
-	addressRecordsV4 map[string]addressRecord
-
-	// Maps from name to IPv6 address record.
-	addressRecordsV6 map[string]addressRecord
+	addressRecords map[addressRecordID]addressRecord
 
 	// Maps from instance name to pointer record.
 	pointerRecords map[string]pointerRecord
@@ -25,14 +29,23 @@ type cache struct {
 	textRecords map[string]textRecord
 }
 
+// addressRecordsByName returns a mapping of address records by name.
+func addressRecordsByName(records map[addressRecordID]addressRecord) map[string][]addressRecord {
+	byName := make(map[string][]addressRecord)
+	for _, record := range records {
+		byName[record.name] = append(byName[record.name], record)
+	}
+
+	return byName
+}
+
 // newCache creates a new DNS cache.
 func newCache() cache {
 	return cache{
-		addressRecordsV4: make(map[string]addressRecord),
-		addressRecordsV6: make(map[string]addressRecord),
-		pointerRecords:   make(map[string]pointerRecord),
-		serviceRecords:   make(map[string]serviceRecord),
-		textRecords:      make(map[string]textRecord),
+		addressRecords: make(map[addressRecordID]addressRecord),
+		pointerRecords: make(map[string]pointerRecord),
+		serviceRecords: make(map[string]serviceRecord),
+		textRecords:    make(map[string]textRecord),
 	}
 }
 
@@ -40,18 +53,15 @@ func newCache() cache {
 // if the cache was actually updated with the new record.
 func (c *cache) onAddressRecordReceived(record addressRecord) bool {
 	cacheUpdated := false
-
-	var recordSet map[string]addressRecord
-	if record.isIPv4() {
-		recordSet = c.addressRecordsV4
-	} else {
-		recordSet = c.addressRecordsV6
+	id := addressRecordID{
+		address: record.address.String(),
+		name:    record.name,
 	}
 
-	existingRecord, ok := recordSet[record.name]
+	existingRecord, ok := c.addressRecords[id]
 
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
-		recordSet[record.name] = record
+		c.addressRecords[id] = record
 		cacheUpdated = true
 	}
 
@@ -106,6 +116,7 @@ func (c *cache) onTextRecordReceived(record textRecord) bool {
 // toResolvedInstances returns the set of fully resolved service instances in the cache.
 func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 	instances := make(map[serviceInstanceID]ServiceInstance)
+	addressRecords := addressRecordsByName(c.addressRecords)
 
 	for instanceName := range c.pointerRecords {
 		serviceRecord, hasService := c.serviceRecords[instanceName]
@@ -118,24 +129,9 @@ func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 			continue
 		}
 
-		addrV4Record, hasAddrV4 := c.addressRecordsV4[serviceRecord.target]
-		addrV6Record, hasAddrV6 := c.addressRecordsV6[serviceRecord.target]
-
-		if hasAddrV4 {
+		for _, addressRecord := range addressRecords[serviceRecord.target] {
 			instance := ServiceInstance{
-				Address:      addrV4Record.address,
-				InstanceName: instanceName,
-				Port:         serviceRecord.port,
-				ServiceName:  serviceRecord.serviceName,
-				TextRecords:  textRecord.values,
-			}
-
-			instances[instance.getID()] = instance
-		}
-
-		if hasAddrV6 {
-			instance := ServiceInstance{
-				Address:      addrV6Record.address,
+				Address:      addressRecord.address,
 				InstanceName: instanceName,
 				Port:         serviceRecord.port,
 				ServiceName:  serviceRecord.serviceName,
@@ -151,5 +147,8 @@ func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 
 // getID returns the service instance's unique id.
 func (s *ServiceInstance) getID() serviceInstanceID {
-	return serviceInstanceID(fmt.Sprintf("%s%s", s.Address, s.InstanceName))
+	hash := md5.New()
+	io.WriteString(hash, s.Address.String())
+	io.WriteString(hash, s.InstanceName)
+	return serviceInstanceID(fmt.Sprintf("%x", hash.Sum(nil)))
 }
