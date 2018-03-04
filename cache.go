@@ -18,6 +18,12 @@ type cache struct {
 	textRecords map[string]textRecord
 }
 
+// resolvedServiceSet contains a set of fully resolved service instances.
+type resolvedServiceSet struct {
+	// Maps from service name to set of resoled service instances.
+	instances map[string][]ServiceInstance
+}
+
 // newCache creates a new DNS cache.
 func newCache() cache {
 	return cache{
@@ -70,4 +76,66 @@ func (c *cache) onTextRecordReceived(record textRecord) {
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
 		c.textRecords[record.instanceName] = record
 	}
+}
+
+// toResolvedInstances returns the set of fully resolved service instances in the cache.
+func (c *cache) toResolvedInstances() resolvedServiceSet {
+	resolved := newResolvedServiceSet()
+
+	for instanceName := range c.pointerRecords {
+		serviceRecord, hasService := c.serviceRecords[instanceName]
+		if !hasService {
+			continue
+		}
+
+		textRecord, hasText := c.textRecords[instanceName]
+		if !hasText {
+			continue
+		}
+
+		addrV4Record, hasAddrV4 := c.addressRecordsV4[serviceRecord.target]
+		addrV6Record, hasAddrV6 := c.addressRecordsV6[serviceRecord.target]
+
+		if hasAddrV4 {
+			instance := ServiceInstance{
+				Address:     addrV4Record.address,
+				Name:        instanceName,
+				Port:        serviceRecord.port,
+				TextRecords: textRecord.values,
+			}
+
+			resolved.addInstance(serviceRecord.serviceName, instance)
+		}
+
+		if hasAddrV6 {
+			instance := ServiceInstance{
+				Address:     addrV6Record.address,
+				Name:        instanceName,
+				Port:        serviceRecord.port,
+				TextRecords: textRecord.values,
+			}
+
+			resolved.addInstance(serviceRecord.serviceName, instance)
+		}
+	}
+
+	return resolved
+}
+
+// newResolvedServiceSet returns an initialized resolved service set.
+func newResolvedServiceSet() resolvedServiceSet {
+	return resolvedServiceSet{
+		instances: make(map[string][]ServiceInstance),
+	}
+}
+
+// addInstance adds the given service instance of the specified service to the set of resolved
+// service instances.
+func (s *resolvedServiceSet) addInstance(serviceName string, instance ServiceInstance) {
+	serviceInstances, ok := s.instances[serviceName]
+	if !ok {
+		serviceInstances = make([]ServiceInstance, 0)
+	}
+
+	s.instances[serviceName] = append(serviceInstances, instance)
 }
