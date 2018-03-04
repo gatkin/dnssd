@@ -1,5 +1,12 @@
 package dnssd
 
+import (
+	"fmt"
+)
+
+// serviceInstanceID is a unique identifier for a fully resolved service instance.
+type serviceInstanceID string
+
 // cache manages a cache of received resource records.
 type cache struct {
 	// Maps from name to IPv4 address record.
@@ -16,12 +23,6 @@ type cache struct {
 
 	// Maps from instance name to text record.
 	textRecords map[string]textRecord
-}
-
-// resolvedServiceSet contains a set of fully resolved service instances.
-type resolvedServiceSet struct {
-	// Maps from service name to set of resoled service instances.
-	instances map[string][]ServiceInstance
 }
 
 // newCache creates a new DNS cache.
@@ -79,8 +80,8 @@ func (c *cache) onTextRecordReceived(record textRecord) {
 }
 
 // toResolvedInstances returns the set of fully resolved service instances in the cache.
-func (c *cache) toResolvedInstances() resolvedServiceSet {
-	resolved := newResolvedServiceSet()
+func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
+	instances := make(map[serviceInstanceID]ServiceInstance)
 
 	for instanceName := range c.pointerRecords {
 		serviceRecord, hasService := c.serviceRecords[instanceName]
@@ -98,44 +99,33 @@ func (c *cache) toResolvedInstances() resolvedServiceSet {
 
 		if hasAddrV4 {
 			instance := ServiceInstance{
-				Address:     addrV4Record.address,
-				Name:        instanceName,
-				Port:        serviceRecord.port,
-				TextRecords: textRecord.values,
+				Address:      addrV4Record.address,
+				InstanceName: instanceName,
+				Port:         serviceRecord.port,
+				ServiceName:  serviceRecord.serviceName,
+				TextRecords:  textRecord.values,
 			}
 
-			resolved.addInstance(serviceRecord.serviceName, instance)
+			instances[instance.getID()] = instance
 		}
 
 		if hasAddrV6 {
 			instance := ServiceInstance{
-				Address:     addrV6Record.address,
-				Name:        instanceName,
-				Port:        serviceRecord.port,
-				TextRecords: textRecord.values,
+				Address:      addrV6Record.address,
+				InstanceName: instanceName,
+				Port:         serviceRecord.port,
+				ServiceName:  serviceRecord.serviceName,
+				TextRecords:  textRecord.values,
 			}
 
-			resolved.addInstance(serviceRecord.serviceName, instance)
+			instances[instance.getID()] = instance
 		}
 	}
 
-	return resolved
+	return instances
 }
 
-// newResolvedServiceSet returns an initialized resolved service set.
-func newResolvedServiceSet() resolvedServiceSet {
-	return resolvedServiceSet{
-		instances: make(map[string][]ServiceInstance),
-	}
-}
-
-// addInstance adds the given service instance of the specified service to the set of resolved
-// service instances.
-func (s *resolvedServiceSet) addInstance(serviceName string, instance ServiceInstance) {
-	serviceInstances, ok := s.instances[serviceName]
-	if !ok {
-		serviceInstances = make([]ServiceInstance, 0)
-	}
-
-	s.instances[serviceName] = append(serviceInstances, instance)
+// getID returns the service instance's unique id.
+func (s *ServiceInstance) getID() serviceInstanceID {
+	return serviceInstanceID(fmt.Sprintf("%s%s", s.Address, s.InstanceName))
 }

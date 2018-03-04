@@ -27,10 +27,11 @@ type Resolver struct {
 
 // ServiceInstance represents a discovered instance of a service.
 type ServiceInstance struct {
-	Address     net.IP
-	Name        string
-	Port        uint16
-	TextRecords map[string]string
+	Address      net.IP
+	InstanceName string
+	Port         uint16
+	ServiceName  string
+	TextRecords  map[string]string
 }
 
 // NewResolver creates a new resolver listening for mDNS messages on the specified interfaces.
