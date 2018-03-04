@@ -19,9 +19,18 @@ const (
 
 // Resolver browses for services on a local area network advertised via mDNS.
 type Resolver struct {
+	cache           cache
 	messagePipeline messagePipeline
 	netClient       netClient
 	shutdownCh      chan struct{}
+}
+
+// ServiceInstance represents a discovered instance of a service.
+type ServiceInstance struct {
+	Address     net.IP
+	Name        string
+	Port        uint16
+	TextRecords map[string]string
 }
 
 // NewResolver creates a new resolver listening for mDNS messages on the specified interfaces.
@@ -35,14 +44,15 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 	}
 
 	messagePipeline := newMessagePipeline()
-	go messagePipeline.pipeMessages(msgCh)
 
 	resolver = Resolver{
+		cache:           newCache(),
 		messagePipeline: messagePipeline,
 		netClient:       client,
 		shutdownCh:      make(chan struct{}),
 	}
 
+	go messagePipeline.pipeMessages(msgCh)
 	go resolver.browse()
 
 	return

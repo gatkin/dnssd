@@ -15,15 +15,19 @@ func (r *Resolver) browse() {
 
 		case addressRecord := <-r.messagePipeline.addressRecordCh:
 			fmt.Printf("%#v\n", addressRecord)
+			r.cache.onAddressRecordReceived(addressRecord)
 
 		case pointerRecord := <-r.messagePipeline.pointerRecordCh:
 			fmt.Printf("%#v\n", pointerRecord)
+			r.cache.onPointerRecordReceived(pointerRecord)
 
 		case serviceRecord := <-r.messagePipeline.serviceRecordCh:
 			fmt.Printf("%#v\n", serviceRecord)
+			r.cache.onServiceRecordReceived(serviceRecord)
 
 		case textRecord := <-r.messagePipeline.textRecordCh:
 			fmt.Printf("%#v\n", textRecord)
+			r.cache.onTextRecordReceived(textRecord)
 		}
 	}
 }
