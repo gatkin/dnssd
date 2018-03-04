@@ -34,7 +34,6 @@ var (
 
 // netClient provides access to sending and receiving network messages.
 type netClient struct {
-	msgCh          <-chan dns.Msg
 	multicastConns []udpConnection
 	unicastConns   []udpConnection
 }
@@ -47,9 +46,8 @@ type udpConnection struct {
 
 // newNetClient creates a new network client listening for DNS messages on the specified interfaces
 // and address families.
-func newNetClient(addrFamily AddrFamily, interfaces []net.Interface) (client netClient, err error) {
+func newNetClient(addrFamily AddrFamily, interfaces []net.Interface, msgCh chan<- dns.Msg) (client netClient, err error) {
 	var unicastConns, multicastConns []udpConnection
-	msgCh := make(chan dns.Msg)
 
 	unicastConns, err = unicastConnectionsCreate(addrFamily, msgCh)
 	if err != nil {
@@ -62,7 +60,6 @@ func newNetClient(addrFamily AddrFamily, interfaces []net.Interface) (client net
 	}
 
 	client = netClient{
-		msgCh:          msgCh,
 		multicastConns: multicastConns,
 		unicastConns:   unicastConns,
 	}
