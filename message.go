@@ -86,7 +86,7 @@ func cacheFlushIsSet(header *dns.RR_Header) bool {
 func headerToResourceRecord(header *dns.RR_Header) resourceRecord {
 	return resourceRecord{
 		cacheFlush: cacheFlushIsSet(header),
-		timeToLive: time.Duration(header.Ttl),
+		timeToLive: time.Duration(header.Ttl) * time.Second,
 	}
 }
 
@@ -157,6 +157,11 @@ func newMessagePipeline() messagePipeline {
 		shutdownCh:      make(chan struct{}),
 		textRecordCh:    make(chan textRecord),
 	}
+}
+
+// isIPv4 returns true if the given address record is for an IPv4 address.
+func (a *addressRecord) isIPv4() bool {
+	return a.address.To4() != nil
 }
 
 // close closes the message pipeline.
