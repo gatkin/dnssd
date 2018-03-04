@@ -14,20 +14,24 @@ func (r *Resolver) browse() {
 			return
 
 		case addressRecord := <-r.messagePipeline.addressRecordCh:
-			fmt.Printf("%#v\n", addressRecord)
-			r.cache.onAddressRecordReceived(addressRecord)
+			if cacheUpdated := r.cache.onAddressRecordReceived(addressRecord); cacheUpdated {
+				r.onCacheUpdated()
+			}
 
 		case pointerRecord := <-r.messagePipeline.pointerRecordCh:
-			fmt.Printf("%#v\n", pointerRecord)
-			r.cache.onPointerRecordReceived(pointerRecord)
+			if cacheUpdated := r.cache.onPointerRecordReceived(pointerRecord); cacheUpdated {
+				r.onCacheUpdated()
+			}
 
 		case serviceRecord := <-r.messagePipeline.serviceRecordCh:
-			fmt.Printf("%#v\n", serviceRecord)
-			r.cache.onServiceRecordReceived(serviceRecord)
+			if cacheUpdated := r.cache.onServiceRecordReceived(serviceRecord); cacheUpdated {
+				r.onCacheUpdated()
+			}
 
 		case textRecord := <-r.messagePipeline.textRecordCh:
-			fmt.Printf("%#v\n", textRecord)
-			r.cache.onTextRecordReceived(textRecord)
+			if cacheUpdated := r.cache.onTextRecordReceived(textRecord); cacheUpdated {
+				r.onCacheUpdated()
+			}
 		}
 	}
 }
@@ -36,4 +40,15 @@ func (r *Resolver) browse() {
 func (r *Resolver) close() {
 	r.netClient.close()
 	r.messagePipeline.close()
+
+	fmt.Printf("%#v\n\n\n", r.cache)
+
+	for id, r := range r.resolvedInstances {
+		fmt.Printf("%v - %v\n", id, r)
+	}
+}
+
+// onCacheUpdated handles updating the resolver's state whenever the cache has been modified.
+func (r *Resolver) onCacheUpdated() {
+	r.resolvedInstances = r.cache.toResolvedInstances()
 }

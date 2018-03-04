@@ -19,10 +19,11 @@ const (
 
 // Resolver browses for services on a local area network advertised via mDNS.
 type Resolver struct {
-	cache           cache
-	messagePipeline messagePipeline
-	netClient       netClient
-	shutdownCh      chan struct{}
+	cache             cache
+	messagePipeline   messagePipeline
+	netClient         netClient
+	resolvedInstances map[serviceInstanceID]ServiceInstance
+	shutdownCh        chan struct{}
 }
 
 // ServiceInstance represents a discovered instance of a service.
@@ -47,10 +48,11 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 	messagePipeline := newMessagePipeline()
 
 	resolver = Resolver{
-		cache:           newCache(),
-		messagePipeline: messagePipeline,
-		netClient:       client,
-		shutdownCh:      make(chan struct{}),
+		cache:             newCache(),
+		messagePipeline:   messagePipeline,
+		netClient:         client,
+		resolvedInstances: make(map[serviceInstanceID]ServiceInstance),
+		shutdownCh:        make(chan struct{}),
 	}
 
 	go messagePipeline.pipeMessages(msgCh)

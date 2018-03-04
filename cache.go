@@ -36,8 +36,11 @@ func newCache() cache {
 	}
 }
 
-// onAddressRecordReceived updates the cache with the given address record.
-func (c *cache) onAddressRecordReceived(record addressRecord) {
+// onAddressRecordReceived updates the cache with the given address record. Returns true
+// if the cache was actually updated with the new record.
+func (c *cache) onAddressRecordReceived(record addressRecord) bool {
+	cacheUpdated := false
+
 	var recordSet map[string]addressRecord
 	if record.isIPv4() {
 		recordSet = c.addressRecordsV4
@@ -49,34 +52,55 @@ func (c *cache) onAddressRecordReceived(record addressRecord) {
 
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
 		recordSet[record.name] = record
+		cacheUpdated = true
 	}
+
+	return cacheUpdated
 }
 
-// onPointerRecordReceived updates the cache with the given pointer record.
-func (c *cache) onPointerRecordReceived(record pointerRecord) {
+// onPointerRecordReceived updates the cache with the given pointer record. Returns true
+// if the cache was actually updated with the new record.
+func (c *cache) onPointerRecordReceived(record pointerRecord) bool {
+	cacheUpdated := false
+
 	existingRecord, ok := c.pointerRecords[record.instanceName]
 
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
 		c.pointerRecords[record.instanceName] = record
+		cacheUpdated = true
 	}
+
+	return cacheUpdated
 }
 
-// onServiceRecordReceived updates the cache with the given service record.
-func (c *cache) onServiceRecordReceived(record serviceRecord) {
+// onServiceRecordReceived updates the cache with the given service record. Returns true
+// if the cache was actually updated with the new record.
+func (c *cache) onServiceRecordReceived(record serviceRecord) bool {
+	cacheUpdated := false
+
 	existingRecord, ok := c.serviceRecords[record.instanceName]
 
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
 		c.serviceRecords[record.instanceName] = record
+		cacheUpdated = true
 	}
+
+	return cacheUpdated
 }
 
-// onTextRecordReceived updates the cache with the given text record.
-func (c *cache) onTextRecordReceived(record textRecord) {
+// onTextRecordReceived updates the cache with the given text record. Returns true
+// if the cache was actually updated with the new record.
+func (c *cache) onTextRecordReceived(record textRecord) bool {
+	cacheUpdated := false
+
 	existingRecord, ok := c.textRecords[record.instanceName]
 
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
 		c.textRecords[record.instanceName] = record
+		cacheUpdated = true
 	}
+
+	return cacheUpdated
 }
 
 // toResolvedInstances returns the set of fully resolved service instances in the cache.
