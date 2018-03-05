@@ -1,11 +1,5 @@
 package dnssd
 
-// serviceInstanceID is a unique identifier for a fully resolved service instance.
-type serviceInstanceID struct {
-	address string
-	name    string
-}
-
 // addressRecordID is a unique identifier for an address record.
 type addressRecordID struct {
 	address string
@@ -24,6 +18,12 @@ type cache struct {
 
 	// Maps from instance name to text record.
 	textRecords map[string]textRecord
+}
+
+// serviceInstanceID is a unique identifier for a fully resolved service instance.
+type serviceInstanceID struct {
+	address string
+	name    string
 }
 
 // addressRecordsByName returns a mapping of address records by name.
