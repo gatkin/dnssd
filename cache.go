@@ -1,13 +1,10 @@
 package dnssd
 
-import (
-	"crypto/md5"
-	"fmt"
-	"io"
-)
-
 // serviceInstanceID is a unique identifier for a fully resolved service instance.
-type serviceInstanceID string
+type serviceInstanceID struct {
+	address string
+	name    string
+}
 
 // addressRecordID is a unique identifier for an address record.
 type addressRecordID struct {
@@ -147,8 +144,8 @@ func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 
 // getID returns the service instance's unique id.
 func (s *ServiceInstance) getID() serviceInstanceID {
-	hash := md5.New()
-	io.WriteString(hash, s.Address.String())
-	io.WriteString(hash, s.InstanceName)
-	return serviceInstanceID(fmt.Sprintf("%x", hash.Sum(nil)))
+	return serviceInstanceID{
+		address: s.Address.String(),
+		name:    s.InstanceName,
+	}
 }
