@@ -1,7 +1,6 @@
 package dnssd
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -34,6 +33,9 @@ func (r *Resolver) browse() {
 				r.onCacheUpdated()
 			}
 
+		case request := <-r.getResolvedInstancesCh:
+			r.onGetResolvedInstances(request)
+
 		case serviceName := <-r.serviceAddCh:
 			r.onServiceAdded(serviceName)
 		}
@@ -44,17 +46,21 @@ func (r *Resolver) browse() {
 func (r *Resolver) close() {
 	r.netClient.close()
 	r.messagePipeline.close()
-
-	fmt.Printf("%#v\n\n\n", r.cache)
-
-	for id, r := range r.resolvedInstances {
-		fmt.Printf("%v - %v\n", id, r)
-	}
 }
 
 // onCacheUpdated handles updating the resolver's state whenever the cache has been modified.
 func (r *Resolver) onCacheUpdated() {
 	r.resolvedInstances = r.cache.toResolvedInstances()
+}
+
+// onGetResolvedInstances handles a request to get all resolved service instances.
+func (r *Resolver) onGetResolvedInstances(request getResolvedInstancesRequest) {
+	instances := make([]ServiceInstance, 0, len(r.resolvedInstances))
+	for _, instance := range r.resolvedInstances {
+		instances = append(instances, instance)
+	}
+
+	request.responseCh <- instances
 }
 
 // onServiceAdded handles adding a new service to browse for.
