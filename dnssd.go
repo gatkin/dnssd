@@ -12,9 +12,9 @@ type AddrFamily int
 
 // Indicates the address families on which to browse for services.
 const (
-	IPv4 AddrFamily = iota
-	IPv6
-	AllAddrFamilies
+	AddrFamilyIPv4 AddrFamily = iota
+	AddrFamilyIPv6
+	AddrFamilyAll
 )
 
 // Resolver browses for services on a local area network advertised via mDNS.

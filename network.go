@@ -207,12 +207,12 @@ func unicastConnectionsCreate(addrFamily AddrFamily, interfaces []net.Interface,
 
 // includesIPv4 returns true if the address family includes IPv4 support.
 func (a AddrFamily) includesIPv4() bool {
-	return (a == IPv4) || (a == AllAddrFamilies)
+	return (a == AddrFamilyIPv4) || (a == AddrFamilyAll)
 }
 
 // includesIPv6 returns true if the address family includes IPv6 support.
 func (a AddrFamily) includesIPv6() bool {
-	return (a == IPv6) || (a == AllAddrFamilies)
+	return (a == AddrFamilyIPv6) || (a == AddrFamilyAll)
 }
 
 // close closes the network client.
