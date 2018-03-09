@@ -57,12 +57,31 @@ type pointerQuestion struct {
 	serviceName string
 }
 
+// interfaceGetAddresses returns all IP addresses for the given interface.
+func interfaceGetAddresses(ifi net.Interface) ([]net.IP, error) {
+	interfaceIPs := make([]net.IP, 0)
+
+	addrs, err := ifi.Addrs()
+	if err != nil {
+		return interfaceIPs, err
+	}
+
+	for _, addr := range addrs {
+		switch ipNet := addr.(type) {
+		case *net.IPNet:
+			interfaceIPs = append(interfaceIPs, ipNet.IP)
+		}
+	}
+
+	return interfaceIPs, err
+}
+
 // newNetClient creates a new network client listening for DNS messages on the specified interfaces
 // and address families.
 func newNetClient(addrFamily AddrFamily, interfaces []net.Interface, msgCh chan<- dns.Msg) (client netClient, err error) {
 	var unicastConns, multicastConns []udpConnection
 
-	unicastConns, err = unicastConnectionsCreate(addrFamily, msgCh)
+	unicastConns, err = unicastConnectionsCreate(addrFamily, interfaces, msgCh)
 	if err != nil {
 		return
 	}
@@ -137,13 +156,13 @@ func newMulticastConnection(network udpNetwork, ifi *net.Interface, msgCh chan<-
 
 // newUnicastConnection creates a new unicast UDP connection on the specified network. All
 // received messages will be written to the given channel.
-func newUnicastConnection(network udpNetwork, msgCh chan<- dns.Msg) (conn udpConnection, err error) {
+func newUnicastConnection(network udpNetwork, interfaceIP net.IP, msgCh chan<- dns.Msg) (conn udpConnection, err error) {
 	conn = udpConnection{
 		network:    network,
 		shutdownCh: make(chan struct{}),
 	}
 
-	conn.conn, err = net.ListenUDP(string(network), &net.UDPAddr{})
+	conn.conn, err = net.ListenUDP(string(network), &net.UDPAddr{IP: interfaceIP})
 	if err != nil {
 		err = fmt.Errorf("dnssd: failed to create unicast connection on network %v: %v", network, err)
 		return
@@ -155,30 +174,35 @@ func newUnicastConnection(network udpNetwork, msgCh chan<- dns.Msg) (conn udpCon
 }
 
 // unicastConnectionsCreate creates all unicast connections.
-func unicastConnectionsCreate(addrFamily AddrFamily, msgCh chan<- dns.Msg) (conns []udpConnection, err error) {
-	conns = make([]udpConnection, 0)
+func unicastConnectionsCreate(addrFamily AddrFamily, interfaces []net.Interface, msgCh chan<- dns.Msg) ([]udpConnection, error) {
+	conns := make([]udpConnection, 0)
 
-	var conn udpConnection
-
-	if addrFamily.includesIPv4() {
-		conn, err = newUnicastConnection(ipv4UDPNetwork, msgCh)
+	for _, ifi := range interfaces {
+		ipAddrs, err := interfaceGetAddresses(ifi)
 		if err != nil {
-			return
+			return conns, err
 		}
 
-		conns = append(conns, conn)
-	}
+		for _, addr := range ipAddrs {
+			if addrFamily.includesIPv4() && addr.To4() != nil {
+				conn, err := newUnicastConnection(ipv4UDPNetwork, addr, msgCh)
+				if err != nil {
+					return conns, err
+				}
 
-	if addrFamily.includesIPv6() {
-		conn, err = newUnicastConnection(ipv6UDPNetwork, msgCh)
-		if err != nil {
-			return
+				conns = append(conns, conn)
+			} else if addrFamily.includesIPv6() {
+				conn, err := newUnicastConnection(ipv6UDPNetwork, addr, msgCh)
+				if err != nil {
+					return conns, err
+				}
+
+				conns = append(conns, conn)
+			}
 		}
-
-		conns = append(conns, conn)
 	}
 
-	return
+	return conns, nil
 }
 
 // includesIPv4 returns true if the address family includes IPv4 support.
