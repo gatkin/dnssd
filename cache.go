@@ -1,5 +1,9 @@
 package dnssd
 
+import (
+	"time"
+)
+
 // addressRecordID is a unique identifier for an address record.
 type addressRecordID struct {
 	address string
@@ -46,14 +50,50 @@ func newCache() cache {
 	}
 }
 
+// getID returns the address records unique identifier.
+func (a *addressRecord) getID() addressRecordID {
+	return addressRecordID{
+		address: a.address.String(),
+		name:    a.name,
+	}
+}
+
+// getMinTimeToLive returns the minimum time-to-live for all resource records in the cache.
+func (c *cache) getMinTimeToLive() time.Duration {
+	minTTL := 1 * time.Hour
+
+	for _, record := range c.addressRecords {
+		if record.timeToLive < minTTL {
+			minTTL = record.timeToLive
+		}
+	}
+
+	for _, record := range c.pointerRecords {
+		if record.timeToLive < minTTL {
+			minTTL = record.timeToLive
+		}
+	}
+
+	for _, record := range c.serviceRecords {
+		if record.timeToLive < minTTL {
+			minTTL = record.timeToLive
+		}
+	}
+
+	for _, record := range c.textRecords {
+		if record.timeToLive < minTTL {
+			minTTL = record.timeToLive
+		}
+	}
+
+	return minTTL
+}
+
 // onAddressRecordReceived updates the cache with the given address record. Returns true
 // if the cache was actually updated with the new record.
 func (c *cache) onAddressRecordReceived(record addressRecord) bool {
 	cacheUpdated := false
-	id := addressRecordID{
-		address: record.address.String(),
-		name:    record.name,
-	}
+	id := record.getID()
 
 	existingRecord, ok := c.addressRecords[id]
 
@@ -105,6 +145,55 @@ func (c *cache) onTextRecordReceived(record textRecord) bool {
 	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
 		c.textRecords[record.instanceName] = record
 		cacheUpdated = true
+	}
+
+	return cacheUpdated
+}
+
+// onTimeElapsed updates the cache based on the specified amount of elapsed time. Any resource
+// records whose time-to-live has expired will be evicted from the cache. Returns true if any
+// records have been evicted.
+func (c *cache) onTimeElapsed(duration time.Duration) bool {
+	cacheUpdated := false
+
+	for id, record := range c.addressRecords {
+		record.timeToLive -= duration
+		if record.timeToLive > 0 {
+			c.addressRecords[id] = record
+		} else {
+			delete(c.addressRecords, id)
+			cacheUpdated = true
+		}
+	}
+
+	for id, record := range c.pointerRecords {
+		record.timeToLive -= duration
+		if record.timeToLive > 0 {
+			c.pointerRecords[id] = record
+		} else {
+			delete(c.pointerRecords, id)
+			cacheUpdated = true
+		}
+	}
+
+	for id, record := range c.serviceRecords {
+		record.timeToLive -= duration
+		if record.timeToLive > 0 {
+			c.serviceRecords[id] = record
+		} else {
+			delete(c.serviceRecords, id)
+			cacheUpdated = true
+		}
+	}
+
+	for id, record := range c.textRecords {
+		record.timeToLive -= duration
+		if record.timeToLive > 0 {
+			c.textRecords[id] = record
+		} else {
+			delete(c.textRecords, id)
+			cacheUpdated = true
+		}
 	}
 
 	return cacheUpdated
