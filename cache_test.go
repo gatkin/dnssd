@@ -28,6 +28,11 @@ type timeElapsedTestCase struct {
 	expectedCache      mockCache
 }
 
+type toResolvedInstancesTestCase struct {
+	cache             mockCache
+	expectedInstances []ServiceInstance
+}
+
 func TestAddAddressRecordCacheFlushSet(t *testing.T) {
 	newRecord := addressRecord{
 		address: net.ParseIP("172.16.6.0"),
@@ -337,6 +342,351 @@ func TestTimeElapsedNothingEvicted(t *testing.T) {
 	testCase.run(t)
 }
 
+func TestToResolvedInstances(t *testing.T) {
+	addressRecords := []addressRecord{
+		addressRecord{
+			address: net.ParseIP("172.16.6.0"),
+			name:    "test_host",
+		},
+	}
+
+	pointerRecords := []pointerRecord{
+		pointerRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+		},
+	}
+
+	serviceRecords := []serviceRecord{
+		serviceRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			port:         9871,
+			target:       "test_host",
+		},
+	}
+
+	textRecords := []textRecord{
+		textRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			values: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	cache := mockCache{
+		addressRecords: addressRecords,
+		pointerRecords: pointerRecords,
+		serviceRecords: serviceRecords,
+		textRecords:    textRecords,
+	}
+
+	expectedServices := []ServiceInstance{
+		ServiceInstance{
+			Address:      net.ParseIP("172.16.6.0"),
+			InstanceName: "test instance._test_service",
+			Port:         9871,
+			ServiceName:  "_test_service",
+			TextRecords: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	testCase := toResolvedInstancesTestCase{
+		cache:             cache,
+		expectedInstances: expectedServices,
+	}
+
+	testCase.run(t)
+}
+
+func TestToResolvedInstancesEmptyCache(t *testing.T) {
+	testCase := toResolvedInstancesTestCase{
+		cache:             mockCache{},
+		expectedInstances: []ServiceInstance{},
+	}
+
+	testCase.run(t)
+}
+
+func TestToResolvedInstancesMismatchedAddressRecord(t *testing.T) {
+	addressRecords := []addressRecord{
+		addressRecord{
+			address: net.ParseIP("172.16.6.0"),
+			name:    "a_different_host",
+		},
+	}
+
+	pointerRecords := []pointerRecord{
+		pointerRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+		},
+	}
+
+	serviceRecords := []serviceRecord{
+		serviceRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			port:         9871,
+			target:       "test_host",
+		},
+	}
+
+	textRecords := []textRecord{
+		textRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			values: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	cache := mockCache{
+		addressRecords: addressRecords,
+		pointerRecords: pointerRecords,
+		serviceRecords: serviceRecords,
+		textRecords:    textRecords,
+	}
+
+	expectedServices := []ServiceInstance{}
+
+	testCase := toResolvedInstancesTestCase{
+		cache:             cache,
+		expectedInstances: expectedServices,
+	}
+
+	testCase.run(t)
+}
+
+func TestToResolvedInstancesMissingAddressRecord(t *testing.T) {
+	addressRecords := []addressRecord{}
+
+	pointerRecords := []pointerRecord{
+		pointerRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+		},
+	}
+
+	serviceRecords := []serviceRecord{
+		serviceRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			port:         9871,
+			target:       "test_host",
+		},
+	}
+
+	textRecords := []textRecord{
+		textRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			values: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	cache := mockCache{
+		addressRecords: addressRecords,
+		pointerRecords: pointerRecords,
+		serviceRecords: serviceRecords,
+		textRecords:    textRecords,
+	}
+
+	expectedServices := []ServiceInstance{}
+
+	testCase := toResolvedInstancesTestCase{
+		cache:             cache,
+		expectedInstances: expectedServices,
+	}
+
+	testCase.run(t)
+}
+
+func TestToResolvedInstancesMissingServiceRecord(t *testing.T) {
+	addressRecords := []addressRecord{
+		addressRecord{
+			address: net.ParseIP("172.16.6.0"),
+			name:    "test_host",
+		},
+	}
+
+	pointerRecords := []pointerRecord{
+		pointerRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+		},
+	}
+
+	serviceRecords := []serviceRecord{}
+
+	textRecords := []textRecord{
+		textRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			values: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	cache := mockCache{
+		addressRecords: addressRecords,
+		pointerRecords: pointerRecords,
+		serviceRecords: serviceRecords,
+		textRecords:    textRecords,
+	}
+
+	expectedServices := []ServiceInstance{}
+
+	testCase := toResolvedInstancesTestCase{
+		cache:             cache,
+		expectedInstances: expectedServices,
+	}
+
+	testCase.run(t)
+}
+
+func TestToResolvedInstancesMissingTextRecord(t *testing.T) {
+	addressRecords := []addressRecord{
+		addressRecord{
+			address: net.ParseIP("172.16.6.0"),
+			name:    "test_host",
+		},
+	}
+
+	pointerRecords := []pointerRecord{
+		pointerRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+		},
+	}
+
+	serviceRecords := []serviceRecord{
+		serviceRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			port:         9871,
+			target:       "test_host",
+		},
+	}
+
+	textRecords := []textRecord{}
+
+	cache := mockCache{
+		addressRecords: addressRecords,
+		pointerRecords: pointerRecords,
+		serviceRecords: serviceRecords,
+		textRecords:    textRecords,
+	}
+
+	expectedServices := []ServiceInstance{}
+
+	testCase := toResolvedInstancesTestCase{
+		cache:             cache,
+		expectedInstances: expectedServices,
+	}
+
+	testCase.run(t)
+}
+
+func TestToResolvedInstancesMultipleAddresses(t *testing.T) {
+	addressRecords := []addressRecord{
+		addressRecord{
+			address: net.ParseIP("172.16.6.0"),
+			name:    "test_host",
+		},
+		addressRecord{
+			address: net.ParseIP("172.16.6.197"),
+			name:    "test_host",
+		},
+		addressRecord{
+			address: net.ParseIP("fe03::fb"),
+			name:    "test_host",
+		},
+		addressRecord{
+			address: net.ParseIP("172.16.6.202"),
+			name:    "a_different_host",
+		},
+	}
+
+	pointerRecords := []pointerRecord{
+		pointerRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+		},
+	}
+
+	serviceRecords := []serviceRecord{
+		serviceRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			port:         9871,
+			target:       "test_host",
+		},
+	}
+
+	textRecords := []textRecord{
+		textRecord{
+			instanceName: "test instance._test_service",
+			serviceName:  "_test_service",
+			values: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	cache := mockCache{
+		addressRecords: addressRecords,
+		pointerRecords: pointerRecords,
+		serviceRecords: serviceRecords,
+		textRecords:    textRecords,
+	}
+
+	expectedServices := []ServiceInstance{
+		ServiceInstance{
+			Address:      net.ParseIP("172.16.6.0"),
+			InstanceName: "test instance._test_service",
+			Port:         9871,
+			ServiceName:  "_test_service",
+			TextRecords: map[string]string{
+				"hello": "world",
+			},
+		},
+		ServiceInstance{
+			Address:      net.ParseIP("172.16.6.197"),
+			InstanceName: "test instance._test_service",
+			Port:         9871,
+			ServiceName:  "_test_service",
+			TextRecords: map[string]string{
+				"hello": "world",
+			},
+		},
+		ServiceInstance{
+			Address:      net.ParseIP("fe03::fb"),
+			InstanceName: "test instance._test_service",
+			Port:         9871,
+			ServiceName:  "_test_service",
+			TextRecords: map[string]string{
+				"hello": "world",
+			},
+		},
+	}
+
+	testCase := toResolvedInstancesTestCase{
+		cache:             cache,
+		expectedInstances: expectedServices,
+	}
+
+	testCase.run(t)
+}
+
 func (tc *addAddressRecordTestCase) run(t *testing.T) {
 	cache := cache{
 		addressRecords: addressesToMap(tc.initialRecords),
@@ -359,6 +709,15 @@ func (tc *timeElapsedTestCase) run(t *testing.T) {
 	assert.Equal(t, actualCache, expectedCache)
 }
 
+func (tc *toResolvedInstancesTestCase) run(t *testing.T) {
+	cache := tc.cache.toCache()
+	expectedInstances := serviceInstancesToMap(tc.expectedInstances)
+
+	actualInstances := cache.toResolvedInstances()
+
+	assert.Equal(t, expectedInstances, actualInstances)
+}
+
 func addressesToMap(addresses []addressRecord) map[addressRecordID]addressRecord {
 	addrMap := make(map[addressRecordID]addressRecord)
 	for _, record := range addresses {
@@ -375,6 +734,15 @@ func pointerRecordsToMap(pointers []pointerRecord) map[string]pointerRecord {
 	}
 
 	return pointerMap
+}
+
+func serviceInstancesToMap(instances []ServiceInstance) map[serviceInstanceID]ServiceInstance {
+	instanceMap := make(map[serviceInstanceID]ServiceInstance)
+	for _, instance := range instances {
+		instanceMap[instance.getID()] = instance
+	}
+
+	return instanceMap
 }
 
 func serviceRecordsToMap(records []serviceRecord) map[string]serviceRecord {
