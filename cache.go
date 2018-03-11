@@ -7,27 +7,21 @@ import (
 // addressRecordID is a unique identifier for an address record.
 type addressRecordID struct {
 	address string
-	name    string
+	name    hostName
 }
 
 // cache manages a cache of received resource records.
 type cache struct {
 	addressRecords map[addressRecordID]addressRecord
-
-	// Maps from instance name to pointer record.
-	pointerRecords map[string]pointerRecord
-
-	// Maps from instance name to service record.
-	serviceRecords map[string]serviceRecord
-
-	// Maps from instance name to text record.
-	textRecords map[string]textRecord
+	pointerRecords map[serviceInstanceName]pointerRecord
+	serviceRecords map[serviceInstanceName]serviceRecord
+	textRecords    map[serviceInstanceName]textRecord
 }
 
 // serviceInstanceID is a unique identifier for a fully resolved service instance.
 type serviceInstanceID struct {
 	address string
-	name    string
+	name    serviceInstanceName
 }
 
 type questionType int
@@ -45,9 +39,9 @@ type question struct {
 	questionType questionType
 }
 
-// addressRecordsByName returns a mapping of address records by name.
-func addressRecordsByName(records map[addressRecordID]addressRecord) map[string][]addressRecord {
-	byName := make(map[string][]addressRecord)
+// addressRecordsByHostName returns a mapping of address records by host name.
+func addressRecordsByHostName(records map[addressRecordID]addressRecord) map[hostName][]addressRecord {
+	byName := make(map[hostName][]addressRecord)
 	for _, record := range records {
 		byName[record.name] = append(byName[record.name], record)
 	}
@@ -57,8 +51,8 @@ func addressRecordsByName(records map[addressRecordID]addressRecord) map[string]
 
 // pointerRecordsByService returns a mapping of service names to the set of pointer records that
 // belong to the service.
-func pointerRecordsByService(records map[string]pointerRecord) map[string][]pointerRecord {
-	byService := make(map[string][]pointerRecord)
+func pointerRecordsByService(records map[serviceInstanceName]pointerRecord) map[serviceName][]pointerRecord {
+	byService := make(map[serviceName][]pointerRecord)
 	for _, record := range records {
 		byService[record.serviceName] = append(byService[record.serviceName], record)
 	}
@@ -70,9 +64,9 @@ func pointerRecordsByService(records map[string]pointerRecord) map[string][]poin
 func newCache() cache {
 	return cache{
 		addressRecords: make(map[addressRecordID]addressRecord),
-		pointerRecords: make(map[string]pointerRecord),
-		serviceRecords: make(map[string]serviceRecord),
-		textRecords:    make(map[string]textRecord),
+		pointerRecords: make(map[serviceInstanceName]pointerRecord),
+		serviceRecords: make(map[serviceInstanceName]serviceRecord),
+		textRecords:    make(map[serviceInstanceName]textRecord),
 	}
 }
 
@@ -117,9 +111,9 @@ func (c *cache) getMinTimeToLive() time.Duration {
 
 // getQuestionsForMissingRecords returns the set of questions for records that are missing from the cache
 // which are needed to resolve the given set of services that are being browsed for.
-func (c *cache) getQuestionsForMissingRecords(browseSet map[string]bool) map[question]bool {
+func (c *cache) getQuestionsForMissingRecords(browseSet map[serviceName]bool) map[question]bool {
 	questions := make(map[question]bool)
-	addressRecords := addressRecordsByName(c.addressRecords)
+	addressRecords := addressRecordsByHostName(c.addressRecords)
 	pointerRecords := pointerRecordsByService(c.pointerRecords)
 
 	for serviceName := range browseSet {
@@ -137,19 +131,19 @@ func (c *cache) getQuestionsForMissingRecords(browseSet map[string]bool) map[que
 			service, ok := c.serviceRecords[pointer.instanceName]
 			if !ok {
 				question := question{
-					name:         pointer.instanceName,
+					name:         pointer.instanceName.String(),
 					questionType: questionTypeService,
 				}
 				questions[question] = true
 			} else {
 				if _, ok := addressRecords[service.target]; !ok {
 					ipV4Question := question{
-						name:         service.target,
+						name:         service.target.String(),
 						questionType: questionTypeIPv4Address,
 					}
 
 					ipV6Question := question{
-						name:         service.target,
+						name:         service.target.String(),
 						questionType: questionTypeIPv6Address,
 					}
 
@@ -160,7 +154,7 @@ func (c *cache) getQuestionsForMissingRecords(browseSet map[string]bool) map[que
 
 			if _, ok := c.textRecords[pointer.instanceName]; !ok {
 				question := question{
-					name:         pointer.instanceName,
+					name:         pointer.instanceName.String(),
 					questionType: questionTypeText,
 				}
 				questions[question] = true
@@ -284,7 +278,7 @@ func (c *cache) onTimeElapsed(duration time.Duration) bool {
 // toResolvedInstances returns the set of fully resolved service instances in the cache.
 func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 	instances := make(map[serviceInstanceID]ServiceInstance)
-	addressRecords := addressRecordsByName(c.addressRecords)
+	addressRecords := addressRecordsByHostName(c.addressRecords)
 
 	for instanceName := range c.pointerRecords {
 		serviceRecord, hasService := c.serviceRecords[instanceName]
@@ -300,9 +294,9 @@ func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 		for _, addressRecord := range addressRecords[serviceRecord.target] {
 			instance := ServiceInstance{
 				Address:      addressRecord.address,
-				InstanceName: instanceName,
+				InstanceName: instanceName.String(),
 				Port:         serviceRecord.port,
-				ServiceName:  serviceRecord.serviceName,
+				ServiceName:  serviceRecord.serviceName.String(),
 				TextRecords:  textRecord.values,
 			}
 
@@ -317,6 +311,6 @@ func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 func (s *ServiceInstance) getID() serviceInstanceID {
 	return serviceInstanceID{
 		address: s.Address.String(),
-		name:    s.InstanceName,
+		name:    serviceInstanceName(s.InstanceName),
 	}
 }

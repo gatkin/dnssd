@@ -8,11 +8,17 @@ import (
 	"github.com/miekg/dns"
 )
 
-// messagePipeline filters, transforms, and pipes raw DNS messages to the appropriate
-// output channels.
-type messagePipeline struct {
-	answerCh   chan answerSet
-	shutdownCh chan struct{}
+type hostName string
+
+type serviceInstanceName string
+
+type serviceName string
+
+// addressRecord contains received address information.
+type addressRecord struct {
+	address net.IP
+	name    hostName
+	resourceRecord
 }
 
 // answerSet represents a set of answers received in a single DNS answer message.
@@ -23,17 +29,16 @@ type answerSet struct {
 	textRecords    []textRecord
 }
 
-// addressRecord contains received address information.
-type addressRecord struct {
-	address net.IP
-	name    string
-	resourceRecord
+// messagePipeline filters, transforms, and pipes raw DNS messages
+type messagePipeline struct {
+	answerCh   chan answerSet
+	shutdownCh chan struct{}
 }
 
 // pointerRecord contains information received for an instance's PTR record.
 type pointerRecord struct {
-	instanceName string
-	serviceName  string
+	instanceName serviceInstanceName
+	serviceName  serviceName
 	resourceRecord
 }
 
@@ -45,17 +50,17 @@ type resourceRecord struct {
 
 // serviceRecord contains information received for an instance's SRV record.
 type serviceRecord struct {
-	instanceName string
+	instanceName serviceInstanceName
 	port         uint16
-	serviceName  string
-	target       string
+	serviceName  serviceName
+	target       hostName
 	resourceRecord
 }
 
 // textRecord contains information received for an instances TXT record.
 type textRecord struct {
-	instanceName string
-	serviceName  string
+	instanceName serviceInstanceName
+	serviceName  serviceName
 	values       map[string]string
 	resourceRecord
 }
@@ -64,7 +69,7 @@ type textRecord struct {
 func aaaaToAddressRecord(aaaa *dns.AAAA) addressRecord {
 	return addressRecord{
 		address:        aaaa.AAAA,
-		name:           aaaa.Hdr.Name,
+		name:           hostName(aaaa.Hdr.Name),
 		resourceRecord: headerToResourceRecord(&aaaa.Hdr),
 	}
 }
@@ -73,7 +78,7 @@ func aaaaToAddressRecord(aaaa *dns.AAAA) addressRecord {
 func aToAddressRecord(a *dns.A) addressRecord {
 	return addressRecord{
 		address:        a.A,
-		name:           a.Hdr.Name,
+		name:           hostName(a.Hdr.Name),
 		resourceRecord: headerToResourceRecord(&a.Hdr),
 	}
 }
@@ -106,27 +111,27 @@ func newMessagePipeline() messagePipeline {
 // ptrToPointerRecord converts a PTR record into a pointer record.
 func ptrToPointerRecord(ptr *dns.PTR) pointerRecord {
 	return pointerRecord{
-		instanceName:   ptr.Ptr,
-		serviceName:    ptr.Hdr.Name,
+		instanceName:   serviceInstanceName(ptr.Ptr),
+		serviceName:    serviceName(ptr.Hdr.Name),
 		resourceRecord: headerToResourceRecord(&ptr.Hdr),
 	}
 }
 
 // serviceNameFromInstanceName extracts the service name from the given instance name.
-func serviceNameFromInstanceName(instanceName string) string {
-	return strings.SplitN(instanceName, ".", 2)[1]
+func serviceNameFromInstanceName(instanceName serviceInstanceName) serviceName {
+	return serviceName(strings.SplitN(instanceName.String(), ".", 2)[1])
 }
 
 // srvToServiceRecord converts an SRV record into a service record.
 func srvToServiceRecord(srv *dns.SRV) serviceRecord {
-	instanceName := srv.Hdr.Name
+	instanceName := serviceInstanceName(srv.Hdr.Name)
 	serviceName := serviceNameFromInstanceName(instanceName)
 
 	return serviceRecord{
 		instanceName:   instanceName,
 		port:           srv.Port,
 		serviceName:    serviceName,
-		target:         srv.Target,
+		target:         hostName(srv.Target),
 		resourceRecord: headerToResourceRecord(&srv.Hdr),
 	}
 }
@@ -150,7 +155,7 @@ func txtToMap(txt *dns.TXT) map[string]string {
 
 // txtToTextRecord converts a TXT record into a text record.
 func txtToTextRecord(txt *dns.TXT) textRecord {
-	instanceName := txt.Hdr.Name
+	instanceName := serviceInstanceName(txt.Hdr.Name)
 	serviceName := serviceNameFromInstanceName(instanceName)
 
 	return textRecord{
@@ -164,6 +169,11 @@ func txtToTextRecord(txt *dns.TXT) textRecord {
 // isIPv4 returns true if the given address record is for an IPv4 address.
 func (a *addressRecord) isIPv4() bool {
 	return a.address.To4() != nil
+}
+
+// String converts a host name to a string.
+func (h hostName) String() string {
+	return string(h)
 }
 
 // close closes the message pipeline.
@@ -213,4 +223,14 @@ func (p *messagePipeline) pipeMessages(msgCh <-chan dns.Msg) {
 			p.onMessageReceived(msg)
 		}
 	}
+}
+
+// String converts a service instance name to a string.
+func (s serviceInstanceName) String() string {
+	return string(s)
+}
+
+// String converts a service name to a string.
+func (s serviceName) String() string {
+	return string(s)
 }

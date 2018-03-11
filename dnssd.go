@@ -20,7 +20,7 @@ const (
 
 // Resolver browses for services on a local area network advertised via mDNS.
 type Resolver struct {
-	browseSet              map[string]bool // Set of services being browsed for
+	browseSet              map[serviceName]bool // Set of services being browsed for
 	cache                  cache
 	cacheUpdateTimer       *time.Timer
 	getResolvedInstancesCh chan getResolvedInstancesRequest
@@ -28,7 +28,7 @@ type Resolver struct {
 	messagePipeline        messagePipeline
 	netClient              netClient
 	resolvedInstances      map[serviceInstanceID]ServiceInstance
-	serviceAddCh           chan string
+	serviceAddCh           chan serviceName
 	shutdownCh             chan struct{}
 }
 
@@ -60,13 +60,13 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 	messagePipeline := newMessagePipeline()
 
 	resolver = Resolver{
-		browseSet: make(map[string]bool),
+		browseSet: make(map[serviceName]bool),
 		cache:     newCache(),
 		getResolvedInstancesCh: make(chan getResolvedInstancesRequest),
 		messagePipeline:        messagePipeline,
 		netClient:              client,
 		resolvedInstances:      make(map[serviceInstanceID]ServiceInstance),
-		serviceAddCh:           make(chan string),
+		serviceAddCh:           make(chan serviceName),
 		shutdownCh:             make(chan struct{}),
 	}
 
@@ -78,8 +78,8 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 
 // BrowseService adds the given service to the set of services the resolver is browsing for. This has
 // no effect if the resolver is already browsing for the service.
-func (r *Resolver) BrowseService(serviceName string) {
-	r.serviceAddCh <- serviceName
+func (r *Resolver) BrowseService(name string) {
+	r.serviceAddCh <- serviceName(name)
 }
 
 // Close closes the resolver and cleans up all resources owned by it.

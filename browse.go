@@ -94,7 +94,7 @@ func (r *Resolver) onGetResolvedInstances(request getResolvedInstancesRequest) {
 }
 
 // onServiceAdded handles adding a new service to browse for.
-func (r *Resolver) onServiceAdded(name string) {
+func (r *Resolver) onServiceAdded(name serviceName) {
 	if r.browseSet[name] {
 		// We were already browsing for this service
 		return
@@ -103,7 +103,7 @@ func (r *Resolver) onServiceAdded(name string) {
 	r.browseSet[name] = true
 
 	question := question{
-		name:         name,
+		name:         name.String(),
 		questionType: questionTypePointer,
 	}
 

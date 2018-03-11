@@ -727,8 +727,8 @@ func addressesToMap(addresses []addressRecord) map[addressRecordID]addressRecord
 	return addrMap
 }
 
-func pointerRecordsToMap(pointers []pointerRecord) map[string]pointerRecord {
-	pointerMap := make(map[string]pointerRecord)
+func pointerRecordsToMap(pointers []pointerRecord) map[serviceInstanceName]pointerRecord {
+	pointerMap := make(map[serviceInstanceName]pointerRecord)
 	for _, record := range pointers {
 		pointerMap[record.instanceName] = record
 	}
@@ -745,8 +745,8 @@ func serviceInstancesToMap(instances []ServiceInstance) map[serviceInstanceID]Se
 	return instanceMap
 }
 
-func serviceRecordsToMap(records []serviceRecord) map[string]serviceRecord {
-	serviceMap := make(map[string]serviceRecord)
+func serviceRecordsToMap(records []serviceRecord) map[serviceInstanceName]serviceRecord {
+	serviceMap := make(map[serviceInstanceName]serviceRecord)
 	for _, record := range records {
 		serviceMap[record.instanceName] = record
 	}
@@ -754,8 +754,8 @@ func serviceRecordsToMap(records []serviceRecord) map[string]serviceRecord {
 	return serviceMap
 }
 
-func textRecordsToMap(records []textRecord) map[string]textRecord {
-	textMap := make(map[string]textRecord)
+func textRecordsToMap(records []textRecord) map[serviceInstanceName]textRecord {
+	textMap := make(map[serviceInstanceName]textRecord)
 	for _, record := range records {
 		textMap[record.instanceName] = record
 	}
