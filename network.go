@@ -47,16 +47,6 @@ type udpConnection struct {
 	shutdownCh chan struct{}
 }
 
-// question represents a DNS question to be sent on the network.
-type question interface {
-	toDNSQuestion() dns.Question
-}
-
-// pointerQuestion represents a PTR DNS question to be set.
-type pointerQuestion struct {
-	serviceName string
-}
-
 // interfaceGetAddresses returns all IP addresses for the given interface.
 func interfaceGetAddresses(ifi net.Interface) ([]net.IP, error) {
 	interfaceIPs := make([]net.IP, 0)
@@ -306,11 +296,30 @@ func (c *udpConnection) listen(msgCh chan<- dns.Msg) {
 	}
 }
 
-// toDNSQuestion converts the pointer question into the corresponding DNS question.
-func (p pointerQuestion) toDNSQuestion() dns.Question {
+// toDNSQuestion converts the question into the corresponding DNS question.
+func (q *question) toDNSQuestion() dns.Question {
+	var qType uint16
+
+	switch q.questionType {
+	case questionTypeIPv4Address:
+		qType = dns.TypeA
+
+	case questionTypeIPv6Address:
+		qType = dns.TypeAAAA
+
+	case questionTypePointer:
+		qType = dns.TypePTR
+
+	case questionTypeService:
+		qType = dns.TypeSRV
+
+	case questionTypeText:
+		qType = dns.TypeTXT
+	}
+
 	return dns.Question{
-		Name:   p.serviceName,
-		Qtype:  dns.TypePTR,
+		Name:   q.name,
+		Qtype:  qType,
 		Qclass: dns.ClassINET,
 	}
 }

@@ -30,6 +30,21 @@ type serviceInstanceID struct {
 	name    string
 }
 
+type questionType int
+
+const (
+	questionTypeIPv4Address questionType = iota
+	questionTypeIPv6Address
+	questionTypePointer
+	questionTypeService
+	questionTypeText
+)
+
+type question struct {
+	name         string
+	questionType questionType
+}
+
 // addressRecordsByName returns a mapping of address records by name.
 func addressRecordsByName(records map[addressRecordID]addressRecord) map[string][]addressRecord {
 	byName := make(map[string][]addressRecord)

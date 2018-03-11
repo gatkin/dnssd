@@ -100,7 +100,12 @@ func (r *Resolver) onServiceAdded(name string) {
 
 	r.services[name] = true
 
-	err := r.netClient.sendQuestion(pointerQuestion{serviceName: name})
+	question := question{
+		name:         name,
+		questionType: questionTypePointer,
+	}
+
+	err := r.netClient.sendQuestion(question)
 	if err != nil {
 		log.Printf("dnssd: failed sending pointer question: %v", err)
 	}
