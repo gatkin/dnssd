@@ -38,8 +38,8 @@ func TestAddAddressRecordCacheFlushSet(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: true,
-			timeToLive: 60 * time.Second,
+			cacheFlush:          true,
+			remainingTimeToLive: 60 * time.Second,
 		},
 	}
 
@@ -47,8 +47,8 @@ func TestAddAddressRecordCacheFlushSet(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 120 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 120 * time.Second,
 		},
 	}
 
@@ -74,8 +74,8 @@ func TestAddAddressRecordDifferentAddress(t *testing.T) {
 		address: net.ParseIP("172.16.6.197"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 90 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 90 * time.Second,
 		},
 	}
 
@@ -83,8 +83,8 @@ func TestAddAddressRecordDifferentAddress(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 120 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 120 * time.Second,
 		},
 	}
 
@@ -111,8 +111,8 @@ func TestAddAddressRecordEmpty(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 120 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 120 * time.Second,
 		},
 	}
 
@@ -136,8 +136,8 @@ func TestAddAddressRecordHigherTTL(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 240 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 240 * time.Second,
 		},
 	}
 
@@ -145,8 +145,8 @@ func TestAddAddressRecordHigherTTL(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 120 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 120 * time.Second,
 		},
 	}
 
@@ -172,8 +172,8 @@ func TestAddAddressRecordLowerTTL(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 60 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 60 * time.Second,
 		},
 	}
 
@@ -181,8 +181,8 @@ func TestAddAddressRecordLowerTTL(t *testing.T) {
 		address: net.ParseIP("172.16.6.0"),
 		name:    "test_host",
 		resourceRecord: resourceRecord{
-			cacheFlush: false,
-			timeToLive: 120 * time.Second,
+			cacheFlush:          false,
+			remainingTimeToLive: 120 * time.Second,
 		},
 	}
 
@@ -211,7 +211,7 @@ func TestTimeElapsedEvictions(t *testing.T) {
 			address: net.ParseIP("172.16.6.0"),
 			name:    "test_host",
 			resourceRecord: resourceRecord{
-				timeToLive: 120 * time.Second,
+				remainingTimeToLive: 120 * time.Second,
 			},
 		},
 	}
@@ -221,14 +221,14 @@ func TestTimeElapsedEvictions(t *testing.T) {
 			instanceName: "test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 800 * time.Second,
+				remainingTimeToLive: 800 * time.Second,
 			},
 		},
 		pointerRecord{
 			instanceName: "another test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 300 * time.Second,
+				remainingTimeToLive: 300 * time.Second,
 			},
 		},
 	}
@@ -245,7 +245,7 @@ func TestTimeElapsedEvictions(t *testing.T) {
 			instanceName: "test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 500 * time.Second,
+				remainingTimeToLive: 500 * time.Second,
 			},
 		},
 	}
@@ -273,7 +273,7 @@ func TestTimeElapsedNothingEvicted(t *testing.T) {
 			address: net.ParseIP("172.16.6.0"),
 			name:    "test_host",
 			resourceRecord: resourceRecord{
-				timeToLive: 120 * time.Second,
+				remainingTimeToLive: 120 * time.Second,
 			},
 		},
 	}
@@ -283,14 +283,14 @@ func TestTimeElapsedNothingEvicted(t *testing.T) {
 			instanceName: "test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 800 * time.Second,
+				remainingTimeToLive: 800 * time.Second,
 			},
 		},
 		pointerRecord{
 			instanceName: "another test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 240 * time.Second,
+				remainingTimeToLive: 240 * time.Second,
 			},
 		},
 	}
@@ -305,7 +305,7 @@ func TestTimeElapsedNothingEvicted(t *testing.T) {
 			address: net.ParseIP("172.16.6.0"),
 			name:    "test_host",
 			resourceRecord: resourceRecord{
-				timeToLive: 115 * time.Second,
+				remainingTimeToLive: 115 * time.Second,
 			},
 		},
 	}
@@ -315,14 +315,14 @@ func TestTimeElapsedNothingEvicted(t *testing.T) {
 			instanceName: "test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 795 * time.Second,
+				remainingTimeToLive: 795 * time.Second,
 			},
 		},
 		pointerRecord{
 			instanceName: "another test instance._test_service",
 			serviceName:  "_test_service",
 			resourceRecord: resourceRecord{
-				timeToLive: 235 * time.Second,
+				remainingTimeToLive: 235 * time.Second,
 			},
 		},
 	}

@@ -44,8 +44,9 @@ type pointerRecord struct {
 
 // resourceRecord contains fields common to all resource records.
 type resourceRecord struct {
-	cacheFlush bool
-	timeToLive time.Duration
+	cacheFlush          bool
+	initialTimeToLive   time.Duration
+	remainingTimeToLive time.Duration
 }
 
 // serviceRecord contains information received for an instance's SRV record.
@@ -94,9 +95,12 @@ func cacheFlushIsSet(header *dns.RR_Header) bool {
 
 // headerToResourceRecord converts an RR header into a resource record.
 func headerToResourceRecord(header *dns.RR_Header) resourceRecord {
+	timeToLive := time.Duration(header.Ttl) * time.Second
+
 	return resourceRecord{
-		cacheFlush: cacheFlushIsSet(header),
-		timeToLive: time.Duration(header.Ttl) * time.Second,
+		cacheFlush:          cacheFlushIsSet(header),
+		initialTimeToLive:   timeToLive,
+		remainingTimeToLive: timeToLive,
 	}
 }
 

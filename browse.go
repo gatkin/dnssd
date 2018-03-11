@@ -45,22 +45,22 @@ func (r *Resolver) onAnswersReceived(answers answerSet) {
 	r.onTimeElapsed()
 
 	for _, record := range answers.addressRecords {
-		log.Printf("Received address record %v ttl = %v\n", record.address, record.timeToLive)
+		log.Printf("Received address record %v ttl = %v\n", record.address, record.remainingTimeToLive)
 		r.cache.onAddressRecordReceived(record)
 	}
 
 	for _, record := range answers.pointerRecords {
-		log.Printf("Received pointer record %v, ttl = %v\n", record.instanceName, record.timeToLive)
+		log.Printf("Received pointer record %v, ttl = %v\n", record.instanceName, record.remainingTimeToLive)
 		r.cache.onPointerRecordReceived(record)
 	}
 
 	for _, record := range answers.serviceRecords {
-		log.Printf("Received service record %v, ttl = %v\n", record.instanceName, record.timeToLive)
+		log.Printf("Received service record %v, ttl = %v\n", record.instanceName, record.remainingTimeToLive)
 		r.cache.onServiceRecordReceived(record)
 	}
 
 	for _, record := range answers.textRecords {
-		log.Printf("Received text record %v, ttl = %v\n", record.instanceName, record.timeToLive)
+		log.Printf("Received text record %v, ttl = %v\n", record.instanceName, record.remainingTimeToLive)
 		r.cache.onTextRecordReceived(record)
 	}
 
@@ -72,6 +72,7 @@ func (r *Resolver) onCacheUpdated() {
 	r.resolvedInstances = r.cache.toResolvedInstances()
 
 	minTimeToLive := r.cache.getMinTimeToLive()
+	log.Printf("Setting cache update timer to go off in %v\n", minTimeToLive)
 	timerReset(r.cacheUpdateTimer, minTimeToLive)
 
 	r.sendOutstandingQuestions()

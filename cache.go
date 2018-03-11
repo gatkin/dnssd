@@ -83,26 +83,26 @@ func (c *cache) getMinTimeToLive() time.Duration {
 	minTTL := 1 * time.Hour
 
 	for _, record := range c.addressRecords {
-		if record.timeToLive < minTTL {
-			minTTL = record.timeToLive
+		if record.remainingTimeToLive < minTTL {
+			minTTL = record.remainingTimeToLive
 		}
 	}
 
 	for _, record := range c.pointerRecords {
-		if record.timeToLive < minTTL {
-			minTTL = record.timeToLive
+		if record.remainingTimeToLive < minTTL {
+			minTTL = record.remainingTimeToLive
 		}
 	}
 
 	for _, record := range c.serviceRecords {
-		if record.timeToLive < minTTL {
-			minTTL = record.timeToLive
+		if record.remainingTimeToLive < minTTL {
+			minTTL = record.remainingTimeToLive
 		}
 	}
 
 	for _, record := range c.textRecords {
-		if record.timeToLive < minTTL {
-			minTTL = record.timeToLive
+		if record.remainingTimeToLive < minTTL {
+			minTTL = record.remainingTimeToLive
 		}
 	}
 
@@ -173,7 +173,7 @@ func (c *cache) onAddressRecordReceived(record addressRecord) bool {
 
 	existingRecord, ok := c.addressRecords[id]
 
-	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
+	if !ok || record.cacheFlush || record.remainingTimeToLive > existingRecord.remainingTimeToLive {
 		c.addressRecords[id] = record
 		cacheUpdated = true
 	}
@@ -188,7 +188,7 @@ func (c *cache) onPointerRecordReceived(record pointerRecord) bool {
 
 	existingRecord, ok := c.pointerRecords[record.instanceName]
 
-	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
+	if !ok || record.cacheFlush || record.remainingTimeToLive > existingRecord.remainingTimeToLive {
 		c.pointerRecords[record.instanceName] = record
 		cacheUpdated = true
 	}
@@ -203,7 +203,7 @@ func (c *cache) onServiceRecordReceived(record serviceRecord) bool {
 
 	existingRecord, ok := c.serviceRecords[record.instanceName]
 
-	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
+	if !ok || record.cacheFlush || record.remainingTimeToLive > existingRecord.remainingTimeToLive {
 		c.serviceRecords[record.instanceName] = record
 		cacheUpdated = true
 	}
@@ -218,7 +218,7 @@ func (c *cache) onTextRecordReceived(record textRecord) bool {
 
 	existingRecord, ok := c.textRecords[record.instanceName]
 
-	if !ok || record.cacheFlush || record.timeToLive > existingRecord.timeToLive {
+	if !ok || record.cacheFlush || record.remainingTimeToLive > existingRecord.remainingTimeToLive {
 		c.textRecords[record.instanceName] = record
 		cacheUpdated = true
 	}
@@ -233,8 +233,8 @@ func (c *cache) onTimeElapsed(duration time.Duration) bool {
 	cacheUpdated := false
 
 	for id, record := range c.addressRecords {
-		record.timeToLive -= duration
-		if record.timeToLive > 0 {
+		record.remainingTimeToLive -= duration
+		if record.remainingTimeToLive > 0 {
 			c.addressRecords[id] = record
 		} else {
 			delete(c.addressRecords, id)
@@ -243,8 +243,8 @@ func (c *cache) onTimeElapsed(duration time.Duration) bool {
 	}
 
 	for id, record := range c.pointerRecords {
-		record.timeToLive -= duration
-		if record.timeToLive > 0 {
+		record.remainingTimeToLive -= duration
+		if record.remainingTimeToLive > 0 {
 			c.pointerRecords[id] = record
 		} else {
 			delete(c.pointerRecords, id)
@@ -253,8 +253,8 @@ func (c *cache) onTimeElapsed(duration time.Duration) bool {
 	}
 
 	for id, record := range c.serviceRecords {
-		record.timeToLive -= duration
-		if record.timeToLive > 0 {
+		record.remainingTimeToLive -= duration
+		if record.remainingTimeToLive > 0 {
 			c.serviceRecords[id] = record
 		} else {
 			delete(c.serviceRecords, id)
@@ -263,8 +263,8 @@ func (c *cache) onTimeElapsed(duration time.Duration) bool {
 	}
 
 	for id, record := range c.textRecords {
-		record.timeToLive -= duration
-		if record.timeToLive > 0 {
+		record.remainingTimeToLive -= duration
+		if record.remainingTimeToLive > 0 {
 			c.textRecords[id] = record
 		} else {
 			delete(c.textRecords, id)
