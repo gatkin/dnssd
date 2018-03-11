@@ -11,11 +11,16 @@ import (
 // messagePipeline filters, transforms, and pipes raw DNS messages to the appropriate
 // output channels.
 type messagePipeline struct {
-	addressRecordCh chan addressRecord
-	pointerRecordCh chan pointerRecord
-	serviceRecordCh chan serviceRecord
-	shutdownCh      chan struct{}
-	textRecordCh    chan textRecord
+	answerCh   chan answerSet
+	shutdownCh chan struct{}
+}
+
+// answerSet represents a set of answers received in a single DNS answer message.
+type answerSet struct {
+	addressRecords []addressRecord
+	pointerRecords []pointerRecord
+	serviceRecords []serviceRecord
+	textRecords    []textRecord
 }
 
 // addressRecord contains received address information.
@@ -93,11 +98,8 @@ func headerToResourceRecord(header *dns.RR_Header) resourceRecord {
 // newMessagePipeline creates a new, initialized message pipeline
 func newMessagePipeline() messagePipeline {
 	return messagePipeline{
-		addressRecordCh: make(chan addressRecord),
-		pointerRecordCh: make(chan pointerRecord),
-		serviceRecordCh: make(chan serviceRecord),
-		shutdownCh:      make(chan struct{}),
-		textRecordCh:    make(chan textRecord),
+		answerCh:   make(chan answerSet),
+		shutdownCh: make(chan struct{}),
 	}
 }
 
@@ -178,22 +180,25 @@ func (p *messagePipeline) onMessageReceived(msg dns.Msg) {
 		return
 	}
 
+	answerSet := answerSet{}
 	resourceRecords := append(msg.Answer, msg.Extra...)
 
 	for _, rr := range resourceRecords {
 		switch resourceRecord := rr.(type) {
 		case *dns.A:
-			p.addressRecordCh <- aToAddressRecord(resourceRecord)
+			answerSet.addressRecords = append(answerSet.addressRecords, aToAddressRecord(resourceRecord))
 		case *dns.AAAA:
-			p.addressRecordCh <- aaaaToAddressRecord(resourceRecord)
+			answerSet.addressRecords = append(answerSet.addressRecords, aaaaToAddressRecord(resourceRecord))
 		case *dns.PTR:
-			p.pointerRecordCh <- ptrToPointerRecord(resourceRecord)
+			answerSet.pointerRecords = append(answerSet.pointerRecords, ptrToPointerRecord(resourceRecord))
 		case *dns.SRV:
-			p.serviceRecordCh <- srvToServiceRecord(resourceRecord)
+			answerSet.serviceRecords = append(answerSet.serviceRecords, srvToServiceRecord(resourceRecord))
 		case *dns.TXT:
-			p.textRecordCh <- txtToTextRecord(resourceRecord)
+			answerSet.textRecords = append(answerSet.textRecords, txtToTextRecord(resourceRecord))
 		}
 	}
+
+	p.answerCh <- answerSet
 }
 
 // pipeMessages filters, transforms, and pipes the appropriate messages from the raw DNS message channel into the
