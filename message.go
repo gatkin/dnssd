@@ -90,6 +90,17 @@ func headerToResourceRecord(header *dns.RR_Header) resourceRecord {
 	}
 }
 
+// newMessagePipeline creates a new, initialized message pipeline
+func newMessagePipeline() messagePipeline {
+	return messagePipeline{
+		addressRecordCh: make(chan addressRecord),
+		pointerRecordCh: make(chan pointerRecord),
+		serviceRecordCh: make(chan serviceRecord),
+		shutdownCh:      make(chan struct{}),
+		textRecordCh:    make(chan textRecord),
+	}
+}
+
 // ptrToPointerRecord converts a PTR record into a pointer record.
 func ptrToPointerRecord(ptr *dns.PTR) pointerRecord {
 	return pointerRecord{
@@ -145,17 +156,6 @@ func txtToTextRecord(txt *dns.TXT) textRecord {
 		serviceName:    serviceName,
 		values:         txtToMap(txt),
 		resourceRecord: headerToResourceRecord(&txt.Hdr),
-	}
-}
-
-// newMessagePipeline creates a new, initialized message pipeline
-func newMessagePipeline() messagePipeline {
-	return messagePipeline{
-		addressRecordCh: make(chan addressRecord),
-		pointerRecordCh: make(chan pointerRecord),
-		serviceRecordCh: make(chan serviceRecord),
-		shutdownCh:      make(chan struct{}),
-		textRecordCh:    make(chan textRecord),
 	}
 }
 
