@@ -3,6 +3,7 @@ package dnssd
 
 import (
 	"net"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -21,6 +22,7 @@ const (
 type Resolver struct {
 	cache                  cache
 	getResolvedInstancesCh chan getResolvedInstancesRequest
+	lastCacheUpdate        time.Time
 	messagePipeline        messagePipeline
 	netClient              netClient
 	resolvedInstances      map[serviceInstanceID]ServiceInstance
