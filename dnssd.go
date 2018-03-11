@@ -21,6 +21,7 @@ const (
 // Resolver browses for services on a local area network advertised via mDNS.
 type Resolver struct {
 	cache                  cache
+	cacheUpdateTimer       *time.Timer
 	getResolvedInstancesCh chan getResolvedInstancesRequest
 	lastCacheUpdate        time.Time
 	messagePipeline        messagePipeline

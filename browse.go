@@ -9,28 +9,39 @@ import (
 func (r *Resolver) browse() {
 	defer r.close()
 
+	r.cacheUpdateTimer = timerCreate()
+
 	for {
 		select {
 		case <-r.shutdownCh:
 			return
 
 		case addressRecord := <-r.messagePipeline.addressRecordCh:
+			log.Printf("Received address record %v ttl = %v\n", addressRecord.address, addressRecord.timeToLive)
 			r.onAddressRecordReceived(addressRecord)
 
 		case pointerRecord := <-r.messagePipeline.pointerRecordCh:
+			log.Printf("Received pointer record ttl = %v\n", pointerRecord.timeToLive)
 			r.onPointerRecordReceived(pointerRecord)
 
 		case serviceRecord := <-r.messagePipeline.serviceRecordCh:
+			log.Printf("Received service record ttl = %v\n", serviceRecord.timeToLive)
 			r.onServiceRecordReceived(serviceRecord)
 
 		case textRecord := <-r.messagePipeline.textRecordCh:
+			log.Printf("Received text record ttl = %v\n", textRecord.timeToLive)
 			r.onTextRecordReceived(textRecord)
 
 		case request := <-r.getResolvedInstancesCh:
 			r.onGetResolvedInstances(request)
 
 		case serviceName := <-r.serviceAddCh:
+			log.Printf("Adding service %v\n", serviceName)
 			r.onServiceAdded(serviceName)
+
+		case <-r.cacheUpdateTimer.C:
+			log.Printf("Cache update timer fired\n")
+			r.onCacheUpdateTimerFired()
 		}
 	}
 }
@@ -51,6 +62,15 @@ func (r *Resolver) onAddressRecordReceived(record addressRecord) {
 // onCacheUpdated handles updating the resolver's state whenever the cache has been modified.
 func (r *Resolver) onCacheUpdated() {
 	r.resolvedInstances = r.cache.toResolvedInstances()
+
+	minTimeToLive := r.cache.getMinTimeToLive()
+	timerReset(r.cacheUpdateTimer, minTimeToLive)
+}
+
+// onCacheUpdateTimerFired handles updating the cache when the cache update timer fires.
+func (r *Resolver) onCacheUpdateTimerFired() {
+	r.onTimeElapsed()
+	r.onCacheUpdated()
 }
 
 // onGetResolvedInstances handles a request to get all resolved service instances.
@@ -108,4 +128,29 @@ func (r *Resolver) onTimeElapsed() {
 	r.cache.onTimeElapsed(duration)
 
 	r.lastCacheUpdate = now
+}
+
+// timerCreate creates a new timer that will not fire until reset with a new duration.
+func timerCreate() *time.Timer {
+	timer := time.NewTimer(time.Hour)
+	timerStop(timer)
+	return timer
+}
+
+// timerReset safely resets the given timer.
+func timerReset(timer *time.Timer, duration time.Duration) {
+	timerStop(timer)
+	timer.Reset(duration)
+}
+
+// timerStop safely stops the given timer and ensures no values can be read from its channel
+func timerStop(timer *time.Timer) {
+	if !timer.Stop() {
+		// The timer already fired, drain its channel to ensure no values can be read
+		// from it.
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
 }
