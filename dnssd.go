@@ -20,6 +20,7 @@ const (
 
 // Resolver browses for services on a local area network advertised via mDNS.
 type Resolver struct {
+	browseSet              map[string]bool // Set of services being browsed for
 	cache                  cache
 	cacheUpdateTimer       *time.Timer
 	getResolvedInstancesCh chan getResolvedInstancesRequest
@@ -28,7 +29,6 @@ type Resolver struct {
 	netClient              netClient
 	resolvedInstances      map[serviceInstanceID]ServiceInstance
 	serviceAddCh           chan string
-	services               map[string]bool // Set of services being browsed for
 	shutdownCh             chan struct{}
 }
 
@@ -60,13 +60,13 @@ func NewResolver(addrFamily AddrFamily, interfaces []net.Interface) (resolver Re
 	messagePipeline := newMessagePipeline()
 
 	resolver = Resolver{
-		cache: newCache(),
+		browseSet: make(map[string]bool),
+		cache:     newCache(),
 		getResolvedInstancesCh: make(chan getResolvedInstancesRequest),
 		messagePipeline:        messagePipeline,
 		netClient:              client,
 		resolvedInstances:      make(map[serviceInstanceID]ServiceInstance),
 		serviceAddCh:           make(chan string),
-		services:               make(map[string]bool),
 		shutdownCh:             make(chan struct{}),
 	}
 

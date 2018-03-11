@@ -73,6 +73,8 @@ func (r *Resolver) onCacheUpdated() {
 
 	minTimeToLive := r.cache.getMinTimeToLive()
 	timerReset(r.cacheUpdateTimer, minTimeToLive)
+
+	r.sendOutstandingQuestions()
 }
 
 // onCacheUpdateTimerFired handles updating the cache when the cache update timer fires.
@@ -93,12 +95,12 @@ func (r *Resolver) onGetResolvedInstances(request getResolvedInstancesRequest) {
 
 // onServiceAdded handles adding a new service to browse for.
 func (r *Resolver) onServiceAdded(name string) {
-	if r.services[name] {
+	if r.browseSet[name] {
 		// We were already browsing for this service
 		return
 	}
 
-	r.services[name] = true
+	r.browseSet[name] = true
 
 	question := question{
 		name:         name,
@@ -120,6 +122,20 @@ func (r *Resolver) onTimeElapsed() {
 	r.cache.onTimeElapsed(duration)
 
 	r.lastCacheUpdate = now
+}
+
+// sendOutstandingQuestions sends all questions needed to resolve the set of services being browsed for based on the
+// current state of the cache.
+func (r *Resolver) sendOutstandingQuestions() {
+	questionSet := r.cache.getQuestionsForMissingRecords(r.browseSet)
+
+	questions := make([]question, 0, len(questionSet))
+	for q := range questionSet {
+		log.Printf("Sending question %v\n", q)
+		questions = append(questions, q)
+	}
+
+	r.netClient.sendQuestions(questions)
 }
 
 // timerCreate creates a new timer that will not fire until reset with a new duration.

@@ -55,6 +55,17 @@ func addressRecordsByName(records map[addressRecordID]addressRecord) map[string]
 	return byName
 }
 
+// pointerRecordsByService returns a mapping of service names to the set of pointer records that
+// belong to the service.
+func pointerRecordsByService(records map[string]pointerRecord) map[string][]pointerRecord {
+	byService := make(map[string][]pointerRecord)
+	for _, record := range records {
+		byService[record.serviceName] = append(byService[record.serviceName], record)
+	}
+
+	return byService
+}
+
 // newCache creates a new DNS cache.
 func newCache() cache {
 	return cache{
@@ -102,6 +113,62 @@ func (c *cache) getMinTimeToLive() time.Duration {
 	}
 
 	return minTTL
+}
+
+// getQuestionsForMissingRecords returns the set of questions for records that are missing from the cache
+// which are needed to resolve the given set of services that are being browsed for.
+func (c *cache) getQuestionsForMissingRecords(browseSet map[string]bool) map[question]bool {
+	questions := make(map[question]bool)
+	addressRecords := addressRecordsByName(c.addressRecords)
+	pointerRecords := pointerRecordsByService(c.pointerRecords)
+
+	for serviceName := range browseSet {
+		pointers, ok := pointerRecords[serviceName]
+		if !ok {
+			// Do not continually ask for pointer records. We ask for pointer records when we first start
+			// browsing for a particular service. If we do not receive any, then that means there are
+			// likely no instances of that service on the network. If an instance of the service does
+			// come online at a later time, it should send an announcement of its presence on the network
+			// as per RFC 6762 section 8.3
+			continue
+		}
+
+		for _, pointer := range pointers {
+			service, ok := c.serviceRecords[pointer.instanceName]
+			if !ok {
+				question := question{
+					name:         pointer.instanceName,
+					questionType: questionTypeService,
+				}
+				questions[question] = true
+			} else {
+				if _, ok := addressRecords[service.target]; !ok {
+					ipV4Question := question{
+						name:         service.target,
+						questionType: questionTypeIPv4Address,
+					}
+
+					ipV6Question := question{
+						name:         service.target,
+						questionType: questionTypeIPv6Address,
+					}
+
+					questions[ipV4Question] = true
+					questions[ipV6Question] = true
+				}
+			}
+
+			if _, ok := c.textRecords[pointer.instanceName]; !ok {
+				question := question{
+					name:         pointer.instanceName,
+					questionType: questionTypeText,
+				}
+				questions[question] = true
+			}
+		}
+	}
+
+	return questions
 }
 
 // onAddressRecordReceived updates the cache with the given address record. Returns true
