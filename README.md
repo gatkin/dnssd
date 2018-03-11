@@ -21,7 +21,7 @@ if err != nil {
 defer resolver.Close()
 ```
 
-Next, you provide the names of the for services which you wish to browse for to the resolver. The same resolver can be used to browse for multiple services.
+Next, you provide the names of the services which you wish to browse for to the resolver. The same resolver can be used to browse for multiple services.
 
 ```go
 resolver.BrowseService("_http._tcp.local.")
