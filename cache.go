@@ -78,9 +78,26 @@ func (a *addressRecord) getID() addressRecordID {
 	}
 }
 
+// getQuestion returns the question to refresh information for the address record.
+func (a *addressRecord) getQuestion() question {
+	var questionType questionType
+	if a.isIPv4() {
+		questionType = questionTypeIPv4Address
+	} else {
+		questionType = questionTypeIPv6Address
+	}
+
+	return question{
+		name:         a.name.String(),
+		questionType: questionType,
+	}
+}
+
 // getMinTimeToLive returns the minimum time-to-live for all resource records in the cache.
 func (c *cache) getMinTimeToLive() time.Duration {
-	minTTL := 1 * time.Hour
+	// 75 minutes is the recommended time-to-live for mDNS records as per
+	// RFC 6762 section 10.
+	minTTL := 75 * time.Minute
 
 	for _, record := range c.addressRecords {
 		if record.remainingTimeToLive < minTTL {
@@ -109,10 +126,53 @@ func (c *cache) getMinTimeToLive() time.Duration {
 	return minTTL
 }
 
+// getQuestionsForExpiringRecords returns the set of questions for records in the cache that are close to
+// expiring and are relevant to the set of services being browsed for.
+func (c *cache) getQuestionsForExpiringRecords(browseSet map[serviceName]bool, questions map[question]bool) {
+	for _, pointer := range c.pointerRecords {
+		if browseSet[pointer.serviceName] && pointer.isCloseToExpiring() {
+			question := question{
+				name:         pointer.instanceName.String(),
+				questionType: questionTypePointer,
+			}
+
+			questions[question] = true
+		}
+	}
+
+	addresses := addressRecordsByHostName(c.addressRecords)
+	for _, service := range c.serviceRecords {
+		if browseSet[service.serviceName] && service.isCloseToExpiring() {
+			question := question{
+				name:         service.instanceName.String(),
+				questionType: questionTypeService,
+			}
+
+			questions[question] = true
+
+			for _, address := range addresses[service.target] {
+				if address.isCloseToExpiring() {
+					questions[address.getQuestion()] = true
+				}
+			}
+		}
+	}
+
+	for _, text := range c.textRecords {
+		if browseSet[text.serviceName] && text.isCloseToExpiring() {
+			question := question{
+				name:         text.instanceName.String(),
+				questionType: questionTypeText,
+			}
+
+			questions[question] = true
+		}
+	}
+}
+
 // getQuestionsForMissingRecords returns the set of questions for records that are missing from the cache
 // which are needed to resolve the given set of services that are being browsed for.
-func (c *cache) getQuestionsForMissingRecords(browseSet map[serviceName]bool) map[question]bool {
-	questions := make(map[question]bool)
+func (c *cache) getQuestionsForMissingRecords(browseSet map[serviceName]bool, questions map[question]bool) {
 	addressRecords := addressRecordsByHostName(c.addressRecords)
 	pointerRecords := pointerRecordsByService(c.pointerRecords)
 
@@ -161,8 +221,6 @@ func (c *cache) getQuestionsForMissingRecords(browseSet map[serviceName]bool) ma
 			}
 		}
 	}
-
-	return questions
 }
 
 // onAddressRecordReceived updates the cache with the given address record. Returns true
@@ -305,6 +363,16 @@ func (c *cache) toResolvedInstances() map[serviceInstanceID]ServiceInstance {
 	}
 
 	return instances
+}
+
+// isCloseToExpiring returns true if the resource record's time-to-live is close to expiring
+// and should be reconfirmed soon.
+func (r *resourceRecord) isCloseToExpiring() bool {
+	elapsed := (r.initialTimeToLive - r.remainingTimeToLive).Seconds()
+
+	// RFC 6762 section 10 specifies that records should be refreshed when more than 80% of
+	// their initial time-to-live has elapsed.
+	return (elapsed / r.initialTimeToLive.Seconds()) > 0.8
 }
 
 // getID returns the service instance's unique id.
