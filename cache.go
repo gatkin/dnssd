@@ -132,7 +132,7 @@ func (c *cache) getQuestionsForExpiringRecords(browseSet map[serviceName]bool, q
 	for _, pointer := range c.pointerRecords {
 		if browseSet[pointer.serviceName] && pointer.isCloseToExpiring() {
 			question := question{
-				name:         pointer.instanceName.String(),
+				name:         pointer.serviceName.String(),
 				questionType: questionTypePointer,
 			}
 
