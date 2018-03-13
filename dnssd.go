@@ -22,11 +22,11 @@ const (
 type Resolver struct {
 	browseSet              map[serviceName]bool // Set of services being browsed for
 	cache                  cache
-	cacheUpdateTimer       *time.Timer
 	getResolvedInstancesCh chan getResolvedInstancesRequest
 	lastCacheUpdate        time.Time
 	messagePipeline        messagePipeline
 	netClient              netClient
+	periodicUpdateTimer    *time.Timer
 	resolvedInstances      map[serviceInstanceID]ServiceInstance
 	serviceAddCh           chan serviceName
 	shutdownCh             chan struct{}

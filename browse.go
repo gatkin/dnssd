@@ -5,11 +5,16 @@ import (
 	"time"
 )
 
+const (
+	periodicUpdateInterval = time.Second * 1
+)
+
 // browse browses for service instances on the local network.
 func (r *Resolver) browse() {
 	defer r.close()
 
-	r.cacheUpdateTimer = timerCreate()
+	r.periodicUpdateTimer = timerCreate()
+	timerReset(r.periodicUpdateTimer, periodicUpdateInterval)
 
 	for {
 		select {
@@ -26,9 +31,9 @@ func (r *Resolver) browse() {
 			log.Printf("Adding service %v\n", serviceName)
 			r.onServiceAdded(serviceName)
 
-		case <-r.cacheUpdateTimer.C:
+		case <-r.periodicUpdateTimer.C:
 			log.Printf("Cache update timer fired\n")
-			r.onCacheUpdateTimerFired()
+			r.onPeriodicUpdate()
 		}
 	}
 }
@@ -70,18 +75,6 @@ func (r *Resolver) onAnswersReceived(answers answerSet) {
 // onCacheUpdated handles updating the resolver's state whenever the cache has been modified.
 func (r *Resolver) onCacheUpdated() {
 	r.resolvedInstances = r.cache.toResolvedInstances()
-
-	minTimeToLive := r.cache.getMinTimeToLive()
-	log.Printf("Setting cache update timer to go off in %v\n", minTimeToLive)
-	timerReset(r.cacheUpdateTimer, minTimeToLive)
-
-	r.sendOutstandingQuestions()
-}
-
-// onCacheUpdateTimerFired handles updating the cache when the cache update timer fires.
-func (r *Resolver) onCacheUpdateTimerFired() {
-	r.onTimeElapsed()
-	r.onCacheUpdated()
 }
 
 // onGetResolvedInstances handles a request to get all resolved service instances.
@@ -92,6 +85,14 @@ func (r *Resolver) onGetResolvedInstances(request getResolvedInstancesRequest) {
 	}
 
 	request.responseCh <- instances
+}
+
+// onPeriodicUpdate handles updating the cache when the cache update timer fires.
+func (r *Resolver) onPeriodicUpdate() {
+	r.onTimeElapsed()
+	r.onCacheUpdated()
+	r.sendOutstandingQuestions()
+	timerReset(r.periodicUpdateTimer, periodicUpdateInterval)
 }
 
 // onServiceAdded handles adding a new service to browse for.
@@ -128,7 +129,9 @@ func (r *Resolver) onTimeElapsed() {
 // sendOutstandingQuestions sends all questions needed to resolve the set of services being browsed for based on the
 // current state of the cache.
 func (r *Resolver) sendOutstandingQuestions() {
-	questionSet := r.cache.getQuestionsForMissingRecords(r.browseSet)
+	questionSet := make(map[question]bool)
+	r.cache.getQuestionsForExpiringRecords(r.browseSet, questionSet)
+	r.cache.getQuestionsForMissingRecords(r.browseSet, questionSet)
 
 	questions := make([]question, 0, len(questionSet))
 	for q := range questionSet {
